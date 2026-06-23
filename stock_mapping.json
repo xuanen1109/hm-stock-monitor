@@ -1,0 +1,119 @@
+{
+  "stocks": {
+    "核心晶片設計": {
+      "台積電": { "code": "2330", "sector": "晶圓代工", "importance": "critical" },
+      "聯發科": { "code": "2454", "sector": "晶片設計", "importance": "critical" },
+      "日月光": { "code": "2311", "sector": "封測", "importance": "high" },
+      "矽品": { "code": "2325", "sector": "封測", "importance": "high" },
+      "世界先進": { "code": "5347", "sector": "晶圓代工", "importance": "medium" },
+      "聯電": { "code": "2303", "sector": "晶圓代工", "importance": "medium" }
+    },
+    "AI 伺服器 & 高效能運算": {
+      "廣達": { "code": "2382", "sector": "伺服器代工", "importance": "critical" },
+      "緯穎": { "code": "6669", "sector": "伺服器代工", "importance": "critical" },
+      "同欣電": { "code": "6271", "sector": "伺服器", "importance": "high" },
+      "華碩": { "code": "2357", "sector": "伺服器/主機板", "importance": "high" },
+      "技嘉": { "code": "2376", "sector": "主機板", "importance": "medium" },
+      "微星": { "code": "2377", "sector": "主機板", "importance": "medium" }
+    },
+    "記憶體 & 儲存": {
+      "美光台灣": { "code": "3034", "sector": "DRAM", "importance": "high" },
+      "群聯": { "code": "8299", "sector": "SSD控制晶片", "importance": "high" },
+      "南亞": { "code": "9910", "sector": "DRAM", "importance": "medium" },
+      "威剛": { "code": "3260", "sector": "記憶體", "importance": "medium" }
+    },
+    "散熱 & 零組件": {
+      "台達電": { "code": "2308", "sector": "電源/散熱", "importance": "high" },
+      "聯鈞": { "code": "3450", "sector": "散熱模組", "importance": "medium" },
+      "超眾": { "code": "3530", "sector": "機殼/散熱", "importance": "low" }
+    },
+    "軟體 & 服務": {
+      "和碩": { "code": "4938", "sector": "代工", "importance": "high" },
+      "光磊": { "code": "2340", "sector": "LED/光電", "importance": "medium" }
+    }
+  },
+  "synonyms": {
+    "台積電": ["TSMC", "台積", "第一代工"],
+    "聯發科": ["MTK", "聯發"],
+    "廣達": ["Quanta", "伺服器大廠"],
+    "緯穎": ["Wistron", "AI 伺服器"],
+    "日月光": ["ASE", "封裝測試大廠"]
+  },
+  "industry_terms": {
+    "大盤": "taiex",
+    "台股加權指數": "taiex",
+    "半導體": ["chip", "semiconductor", "晶片", "IC"],
+    "AI 伺服器": ["AI server", "伺服器", "high-performance computing", "HPC"],
+    "先進製程": ["advanced node", "3nm", "5nm", "7nm"],
+    "利多": { "sentiment": "positive", "score": 1 },
+    "利空": { "sentiment": "negative", "score": -1 },
+    "題材": "speculation_topic",
+    "KY股": { "type": "foreign_company", "tax_treated_separately": true },
+    "外資": "foreign_investment",
+    "投信": "domestic_fund",
+    "法人": "institutional_investor",
+    "連買": "continuous_buying",
+    "連賣": "continuous_selling",
+    "倒貨": "major_selling_pressure",
+    "籌碼": "shareholding_structure",
+    "超買": "overbought",
+    "超賣": "oversold",
+    "融資": "margin_long",
+    "融券": "margin_short"
+  },
+  "sectors": {
+    "晶圓代工": {
+      "stocks": ["2330", "2303", "5347"],
+      "related_topics": ["製程進展", "產能", "客戶轉單"]
+    },
+    "晶片設計": {
+      "stocks": ["2454"],
+      "related_topics": ["5G", "AI晶片", "新品發佈"]
+    },
+    "伺服器代工": {
+      "stocks": ["2382", "6669"],
+      "related_topics": ["AI伺服器出貨", "效能提升", "客戶需求"]
+    },
+    "封測": {
+      "stocks": ["2311", "2325"],
+      "related_topics": ["先進封裝", "良率", "訂單"]
+    }
+  },
+  "impact_keywords": {
+    "positive": {
+      "產能": 0.8,
+      "創新高": 0.7,
+      "訂單": 0.8,
+      "轉單": 0.9,
+      "擴廠": 0.9,
+      "投資": 0.7,
+      "合作": 0.6,
+      "獲利": 0.8,
+      "市佔": 0.7
+    },
+    "negative": {
+      "跌": -0.7,
+      "虧損": -0.8,
+      "下跌": -0.7,
+      "衰退": -0.8,
+      "裁員": -0.9,
+      "競爭": -0.6,
+      "封鎖": -0.9,
+      "反壟斷": -0.8
+    }
+  },
+  "international_triggers": {
+    "nvidia": {
+      "zh_names": ["輝達", "英偉達"],
+      "related_tw_stocks": ["2454", "2330", "2382", "6669"]
+    },
+    "tsmc": {
+      "zh_names": ["台積電"],
+      "code": "2330"
+    },
+    "us_tech_earnings": {
+      "companies": ["NVDA", "AMD", "QCOM", "ARM"],
+      "related_tw_stocks": ["2330", "2454", "2382"]
+    }
+  }
+}
