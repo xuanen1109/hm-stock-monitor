@@ -123,6 +123,17 @@ class PublicDataTests(unittest.TestCase):
         self.assertEqual(rows[0][8], 1000.0)
 
 
+class BenchmarkTests(unittest.TestCase):
+    def test_buy_and_hold_costs_and_window(self):
+        from seed_radar.backtest import benchmark_metrics
+        days = pd.bdate_range("2024-01-01", periods=10)
+        bench = pd.DataFrame(dict(date=days, close=np.linspace(100, 110, 10)))
+        m = benchmark_metrics(bench, days[2:8])
+        entry, last = bench.close.iloc[2], bench.close.iloc[7]
+        self.assertAlmostEqual(m["bench_return"], last / entry * (1 - .001425) * (1 - .001425 - .001) - 1)
+        self.assertEqual(m["bench_max_drawdown"], 0)
+
+
 class SafetyTests(unittest.TestCase):
     def test_no_order_functions_in_seed_radar(self):
         pat = re.compile(r"\.(place_order|modify_price|modify_volume|cancel_order|batch_place_order|accounting)\b")

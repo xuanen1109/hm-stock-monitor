@@ -70,6 +70,22 @@ def metrics(trades,equity,initial=1_000_000):
         sharpe=ratio(daily.mean()*np.sqrt(252),daily.std()),
         mean_excluding_top_1pct=float(r.sort_values().iloc[:max(1,int(len(r)*.99))].mean()) if len(r)>1 else None)
 
+ETF_TAX=.001
+
+def benchmark_metrics(bench,sessions,initial=1_000_000):
+    """0050 buy-and-hold over the same test sessions: buy at first session open (or close if no open),
+    hold to last close; one-side fee each way and ETF sell tax. bench: date, close[, open] (adjusted)."""
+    b=bench.copy();b["date"]=pd.to_datetime(b.date).dt.normalize()
+    b=b.set_index("date").reindex(pd.to_datetime(sessions)).dropna(subset=["close"])
+    if len(b)<2: return dict(bench_return=None,bench_annualized=None,bench_max_drawdown=None,bench_sharpe=None)
+    entry=float(b.open.iloc[0]) if "open" in b and pd.notna(b.open.iloc[0]) else float(b.close.iloc[0])
+    curve=b.close/entry*(1-FEE)
+    final=float(curve.iloc[-1]*(1-FEE-ETF_TAX))
+    daily=curve.pct_change().dropna()
+    return dict(bench_return=final-1,bench_annualized=final**(252/len(b))-1,
+                bench_max_drawdown=float((curve/curve.cummax()-1).min()),
+                bench_sharpe=float(daily.mean()*np.sqrt(252)/daily.std()) if daily.std()>0 else None)
+
 def labels(frame,sessions,days=5,move=.12):
     """Research definition: stock-day event = first future close >= +12% within 5
     market sessions. Require complete observations to avoid treating censored rows as negatives.

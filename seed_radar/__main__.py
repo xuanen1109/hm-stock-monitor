@@ -7,7 +7,7 @@ import sqlite3
 import uuid
 import pandas as pd
 from .engine import VERSION, ENGINES, read_bars, features, leaderboard
-from .backtest import HORIZONS, walk_forward
+from .backtest import HORIZONS, benchmark_metrics, walk_forward
 
 def archive(db,run,kind,records):
     with sqlite3.connect(db) as con:
@@ -24,6 +24,7 @@ def main():
     p.add_argument("--out",default="seed_output")
     p.add_argument("--engine",choices=ENGINES+["all"],default="all")
     p.add_argument("--as-of",help="Last permissible session YYYY-MM-DD")
+    p.add_argument("--benchmark",help="0050 adjusted daily CSV: date,close[,open]")
     a=p.parse_args()
     root=Path(a.out);root.mkdir(parents=True,exist_ok=True)
     run=uuid.uuid4().hex
@@ -56,9 +57,15 @@ def main():
     else:
         reports=[]
         sessions=sorted(market.date.unique())
+        bench=pd.read_csv(a.benchmark) if a.benchmark else None
         for e in engines+["random","momentum"]:
             for h in HORIZONS:
                 for i,(report,t,eq,o,sig) in enumerate(walk_forward(frame,bars,sessions,e,h)):
+                    if bench is not None:
+                        test_days=[d for d in sessions if pd.Timestamp(report["start"])<=d<=pd.Timestamp(report["end"])]
+                        report.update(benchmark_metrics(bench,test_days))
+                        if report.get("annualized_return") is not None and report.get("bench_annualized") is not None:
+                            report["excess_annualized_vs_0050"]=report["annualized_return"]-report["bench_annualized"]
                     reports.append(report)
                     stem=f"{e}_{h}_{i}"
                     for name,df in [("trades",t),("equity",eq),("orders",o),("signals",sig)]:
@@ -67,7 +74,7 @@ def main():
         pd.DataFrame(reports).to_csv(out/"fold_metrics.csv",index=False)
         archive(db,run,"fold_metrics",reports)
         manifest["warning"]="No completed folds" if not reports else "Fold-level estimates only; unresolved positions may bias trade metrics"
-        manifest["benchmark_0050"]="not yet implemented; no excess return claim"
+        manifest["benchmark_0050"]="per-fold buy-and-hold on the same test sessions (fees+ETF tax)" if bench is not None else "not provided; no excess return claim"
     (out/"manifest.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding="utf-8")
     print(out)
 
