@@ -152,6 +152,9 @@ def score(snap: pd.DataFrame, base: pd.DataFrame, tickers: pd.DataFrame, fundame
     else:
         d["out_ratio"], d["tick_lots"] = np.nan, np.nan
     d.loc[~(d.vr.ge(1.5) & d.rel.gt(0)), "capital"] = d.capital * .6
+    # 爆量但收在日內低檔、或外盤比偏低：是賣壓（出貨）而非資金萌芽，降權
+    d.loc[d.pos.lt(.25), "capital"] = d.capital * .6
+    d.loc[d.out_ratio.lt(.35) & d.tick_lots.ge(5), "capital"] = d.capital * .8
     # B 族群萌芽
     e = d[d.eligible].copy()
     groups = {}
@@ -233,6 +236,10 @@ def risks(r, market_regime: str | None) -> list[str]:
     out = []
     if r.negative_news:
         out.append(f"同期利空公告：{r.negative_news}")
+    if pd.notna(r.pos) and r.pos < .4:
+        out.append(f"股價位於今日區間下緣（日內位置 {r.pos:.0%}），買盤延續性不足")
+    if pd.notna(r.out_ratio) and r.out_ratio < .45:
+        out.append(f"外盤比 {r.out_ratio:.0%} 偏低，賣壓較重")
     if pd.notna(r.ret20_prior) and r.ret20_prior > .2:
         out.append(f"近 20 日已漲 {r.ret20_prior:.0%}")
     if pd.notna(r.index_chg) and r.index_chg < -1:

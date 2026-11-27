@@ -62,6 +62,11 @@ class IntradayTests(unittest.TestCase):
         self.assertGreaterEqual(d.loc["2400", "capital"], 65)
         self.assertEqual(d.loc["2400", "stage"], "萌芽期")
 
+    def test_heavy_volume_at_day_low_is_not_seed(self):
+        d, _ = self.run_score(snap_rows(change_pct=2.5, last=99.2, high=103., low=99., volume_lots=9000.))
+        self.assertLess(d.loc["2400", "capital"], 65)
+        self.assertNotEqual(d.loc["2400", "stage"], "萌芽期")
+
     def test_stale_quote_flagged(self):
         d, _ = self.run_score(snap_rows(last_trade=(AT - dt.timedelta(seconds=200)).isoformat()))
         self.assertFalse(bool(d.loc["2400", "fresh"]))

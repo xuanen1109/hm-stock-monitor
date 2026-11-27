@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import contextlib
 import datetime as dt
 import json
 import queue
@@ -394,6 +395,20 @@ class Hub:
         print(f"{t:%H:%M:%S} {status} 掃描 {rep['coverage']['scanned']} 檔 候選 {rep['candidates_total']} 逐筆 {n_ticks} "
               f"延遲p50 {delay.get('ws_p50_s')}s", flush=True)
 
+    def market_regime(self) -> str | None:
+        """唯讀讀取既有大盤引擎最近一次決策（decisions 表），只用於報告的風險說明，不影響其運作。"""
+        if not self.a.regime_db:
+            return None
+        try:
+            with contextlib.closing(sqlite3.connect(f"file:{self.a.regime_db}?mode=ro", uri=True, timeout=5)) as rc:
+                r = rc.execute("SELECT ts, trend_score, regime, band FROM decisions ORDER BY id DESC LIMIT 1").fetchone()
+        except sqlite3.Error:
+            return None
+        if not r:
+            return None
+        band = {"strong_bear": "強空", "bear": "偏空", "neutral": "中性", "bull": "偏多", "strong_bull": "強多"}.get(r[3], r[3])
+        return f"{band}（趨勢分數 {r[1]:+.1f}，{r[2]}；{r[0][:16].replace('T', ' ')} 決策）"
+
     def meta(self, d, status, notes, delay, first_seen) -> dict:
         trade = pd.to_datetime(d.last_trade[d.liquid], errors="coerce", format="ISO8601").dropna()
         listed = self.tickers[self.tickers.symbol.str.match(intraday.COMMON)] if not self.tickers.empty else self.tickers
@@ -402,7 +417,7 @@ class Hub:
         fund_as = [v.get("as_of") or v.get("month") for v in self.fund_meta.values() if isinstance(v, dict) and (v.get("as_of") or v.get("month"))]
         fund_f = [v.get("fetched") for v in self.fund_meta.values() if isinstance(v, dict) and v.get("fetched")]
         n_listed = len(listed)
-        return dict(status=status, health_notes=notes, delay=delay, first_seen=first_seen,
+        return dict(status=status, health_notes=notes, delay=delay, first_seen=first_seen, market_regime=self.market_regime(),
                     trade_latest=iso(trade.max()) if len(trade) else None, trade_median=iso(trade.median()) if len(trade) else None,
                     received=d.received.max(), news_published=max(news_pub) if news_pub else None, news_fetched=max(news_f) if news_f else None,
                     fund_as_of="、".join(sorted(set(fund_as))) if fund_as else None, fund_fetched=max(fund_f) if fund_f else None,
@@ -487,6 +502,7 @@ def main():
     p.add_argument("--out", required=True, help="報告輸出資料夾")
     p.add_argument("--login-hook", help="本機台新登入程式（不在 Git）")
     p.add_argument("--history-db", help="history_taishin 的 SQLite（提供個股同時段量能基準）")
+    p.add_argument("--regime-db", help="既有大盤引擎 SQLite（唯讀 decisions 表，報告風險說明用）")
     p.add_argument("--focus", type=int, default=600, help="WebSocket 重點股（依成交值）")
     p.add_argument("--max-subs", type=int, default=900, help="WebSocket 訂閱上限（實測 1000 檔可訂閱）")
     p.add_argument("--books", type=int, default=30)
