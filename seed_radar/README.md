@@ -1,7 +1,12 @@
-# Seed Radar 0.1 — 研究用原型（非原始 V1.0）
+# Seed Radar 0.3 — 研究用原型（非原始 V1.0）
 
-獨立於既有新聞爬蟲、Firestore 與 LINE。沒有券商 API，沒有實盤下單；現有主程式與排程未修改。
+獨立於既有新聞爬蟲、Firestore 與 LINE。行情改用台新證券 Nova API（唯讀行情客戶端），
+**沒有實盤下單**；現有主程式、排程與新聞通知未修改。
 原始 Seed Radar V1.0 和大盤交易引擎尚未取得，因此本分支不能宣稱完成原版合併。
+
+- 盤中即時資料中心、全市場每分鐘萌芽評分與報告：`python -m seed_radar.hub`（見 DATA_PIPELINE.md）
+- 盤中四策略（A 資金／B 族群／C 消息／D 反轉）：`seed_radar/intraday.py`；日線版本：`seed_radar/engine.py`
+- 台新歷史資料增量下載：`python -m seed_radar.history_taishin`；交易所官方日線：`python -m seed_radar.market_ingest`
 
 ## 執行（在 repo 根目錄）
 ```sh

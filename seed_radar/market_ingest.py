@@ -78,7 +78,8 @@ def parse_daily(obj,exchange,day):
         if not any(s in evidence for s in (f"{roc}年{d.month:02d}月{d.day:02d}日",f"{roc}年{d.month}月{d.day}日",f"{roc}/{d.month:02d}/{d.day:02d}",d.strftime("%Y/%m/%d"),day)):
             raise ValueError("response has no verified session date")
     for t in tables(obj):
-        fs=t.get("fields",[]); data=t.get("data",[])
+        # TPEx field names carry stray spaces (e.g. "收盤 ", "成交股數  "); normalise before matching.
+        fs=[str(f).strip() for f in t.get("fields",[])]; data=t.get("data",[])
         if not ({"證券代號","收盤價"}<=set(fs) or {"代號","收盤"}<=set(fs)): continue
         out=[]
         for values in data:
