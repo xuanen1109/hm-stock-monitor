@@ -36,7 +36,8 @@ def simulate(bars, signals, sessions, horizon=5, initial=1_000_000, max_position
                 price=r.open*(1+SLIP)
                 if price>r.limit_up:
                     orders.append(dict(date=day,ticker=s.ticker,status="slippage_above_limit"));continue
-                qty=int(min(budget/(price*(1+FEE)),r.volume*.005)//1000)*1000
+                prior=lookup.get((prev,s.ticker))
+                qty=int(min(budget/(price*(1+FEE)),(prior.volume if prior is not None else 0)*.005)//1000)*1000
                 if qty<=0:
                     orders.append(dict(date=day,ticker=s.ticker,status="lot_or_liquidity"));continue
                 cost=qty*price*(1+FEE); cash-=cost
@@ -107,7 +108,7 @@ def walk_forward(frame,bars,sessions,engine,horizon=5,train=252,test=63):
         threshold=65
         if engine in ENGINES:
             results=[]
-            for t in [60,65,70,75]:
+            for t in [65,70,75,80]:
                 sig=candidates(tr,engine,t).assign(score=lambda z:z[engine])
                 a,b,_,_=simulate(bars,sig,train_days,horizon)
                 m=metrics(a,b)
