@@ -18,7 +18,7 @@ python -m seed_radar backtest --bars bars.csv --market market.csv --engine all
 可選 --as-of YYYY-MM-DD、--out 路徑。所有輸出為研究用日線，不是即時行情。每次執行獨立 run ID；audit.sqlite 有禁止一般 UPDATE/DELETE 的 trigger，但非防管理者竄改的永久保存。須另行備份。
 
 ## 資料契約
-- bars.csv: date,ticker,name,open,high,low,close,volume,limit_up,limit_down。成交量為股，價格須未還原且同一基準。須含歷史上市/櫃及下市股票；未取得全市場資料時不能宣稱全市場回測。公司行動、除權息、下市現金結算仍待實作；未結算部位必須揭露。
+- bars.csv: date,ticker,name,open,high,low,close,volume,limit_up,limit_down[,adj_factor]。成交量為股，價格須未還原且同一基準。須含歷史上市/櫃及下市股票；未取得全市場資料時不能宣稱全市場回測。adj_factor（還原收盤／原始收盤，`prepare_backtest` 產生）讓除權息、減資以總報酬計價；缺值視為 1。下市現金結算仍待實作；未結算部位必須揭露。
 - market.csv: date,close,regime（選填，僅當日收盤可知狀態）。date 必須涵蓋完整交易日曆；不能用個股交易日代替。regime 使用 strong_bull,bull,sideways,bear,strong_bear。缺省以 20/60 日均線和五日報酬作研究代理，並非原交易引擎。
 - industry.csv: ticker,available_at,source,sector,exposure（0–1，實質營收曝險比例）；每筆是完整快照，不可用現在的供應鏈回填過去。
 - news.csv: ticker,available_at,source,headline,novelty,credibility,impact,priced_in（四項皆為 0–1）。應由外部資料管線按首次可取得時間、事件去重、來源驗證、正負向影響及實質曝險建立。現在只接受已處理快照，不含新聞爬取/LLM 推演；source 優先原始 URL。
@@ -32,8 +32,8 @@ python -m seed_radar backtest --bars bars.csv --market market.csv --engine all
 - 收盤訊號、次交易日開盤買入、第 1/3/5/10/20 個持有交易日收盤出場；漲停開盤拒買、跌停收盤延後賣。整張、前日成交量 0.5% 上限、每側手續費 0.1425%、股票賣出稅 0.3%、每側滑價 0.1%，均可在程式內改版本；不保證可成交。最低手續費、交易所特殊交易規則及盤中逐筆資料尚未建模。
 - 初始資金 100 萬、最多十檔、五種市場曝險上限 100/80/50/25/0%；依進場成本估計上限，非強制再平衡。未結算持倉以最近收盤估價，若下市不可視為已實現。
 - Walk-forward 訓練 252 日、隔離 20 日、測試 63 日，每折獨立帳戶。門檻選擇只用訓練區間且至少 20 筆；樣本不足採 65。各折報告並保留訂單拒絕、訊號、交易與淨值。不把不同獨立帳戶串成假複利。隨機與動能基準共用成交引擎，但每日候選數與策略不完全相同。
-- 0050 基準、跨折連續帳戶、去極端交易後完整淨值/回撤、獨立事件召回率、統計信賴區間尚待完成。報告目前有排除最高 1% 交易的平均報酬。
-- 歷史回測不等於模擬交易實盤；尚未有真實市場結果，55–65% 勝率、2:1 盈虧比、<15% 回撤、1000 筆、提前 1–5 日均未驗證。
+- 0050 基準（同測試期間買進持有，含手續費與 ETF 證交稅）與逐筆「同進出場日持有 0050」比較已完成（`--benchmark`、`summarize --benchmark`）；各折報酬依序相乘的 chained 指標僅為近似。去極端交易後完整淨值/回撤、獨立事件召回率、統計信賴區間尚待完成。
+- 歷史回測不等於模擬交易實盤。第一次正式五年回測（2026-11-27，結果見 DATA_PIPELINE.md §5）：日線版 A 資金策略扣成本後未勝過 0050，與隨機、動能基準相近；55–65% 勝率、2:1 盈虧比、<15% 回撤等目標未達成。
 
 ## 後續整合
 1. 取得原始 V1.0、原大盤引擎及資料授權；使用 TWSE/TPEx/MOPS 等免費來源先建歷史日線、歷史成分及公司行動資料庫。所有下載記錄來源、取得時間、校驗碼及缺漏。

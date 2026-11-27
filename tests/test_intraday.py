@@ -175,6 +175,12 @@ class BenchmarkTests(unittest.TestCase):
         self.assertAlmostEqual(m["bench_return"], last / entry * (1 - .001425) * (1 - .001425 - .001) - 1)
         self.assertEqual(m["bench_max_drawdown"], 0)
 
+    def test_chained_fold_returns(self):
+        from seed_radar.summarize import chain
+        total, cagr = chain(pd.Series([.1, -.1, np.nan]), pd.Series([126, 126, 0]))
+        self.assertAlmostEqual(total, 1.1 * .9 - 1)
+        self.assertAlmostEqual(cagr, (1.1 * .9) ** (252 / 252) - 1)
+
 
 class SafetyTests(unittest.TestCase):
     def test_no_order_functions_in_seed_radar(self):

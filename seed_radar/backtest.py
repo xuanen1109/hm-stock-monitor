@@ -19,7 +19,8 @@ def simulate(bars, signals, sessions, horizon=5, initial=1_000_000, max_position
     Missing exits remain unresolved, marked at last known close; never silently dropped.
     Fixed cash allocation, no leverage. Whole 1000-share lots."""
     sessions=list(pd.to_datetime(sessions))
-    bars=bars.copy()
+    # Only rows inside the simulated window are ever looked up (prev session is also in the window).
+    bars=bars[bars.date.isin(sessions)]
     lookup={(r.date,r.ticker):r for r in bars.itertuples()}
     bydate={d:g.sort_values("score",ascending=False) for d,g in signals.groupby("date")}
     cash=float(initial); holdings={}; trades=[]; orders=[]; equity=[]
