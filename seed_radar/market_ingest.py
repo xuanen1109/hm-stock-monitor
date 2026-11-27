@@ -22,6 +22,7 @@ def open_db(path):
     CREATE TABLE IF NOT EXISTS status(source TEXT, period TEXT, state TEXT, checked TEXT, detail TEXT, PRIMARY KEY(source,period));
     CREATE TABLE IF NOT EXISTS bars(date TEXT, exchange TEXT, ticker TEXT, name TEXT, open REAL, high REAL, low REAL, close REAL, volume REAL, next_up REAL, next_down REAL, PRIMARY KEY(date,exchange,ticker));
     CREATE TABLE IF NOT EXISTS market(date TEXT PRIMARY KEY, close REAL NOT NULL);
+    CREATE TABLE IF NOT EXISTS limits(date TEXT, exchange TEXT, ticker TEXT, up REAL, down REAL, PRIMARY KEY(date,exchange,ticker));
     """)
     return c
 def mark(c,source,period,state,detail=""):
@@ -128,6 +129,29 @@ def daily(c,exchange,day,refresh=False):
         mark(c,exchange,day,"ok",str(len(rows)))
     except Exception as e:
         mark(c,exchange,day,"error",str(e)); raise
+TWSE_LIMITS="https://www.twse.com.tw/rwd/zh/variation/TWT84U"
+def twse_limits(c,day,refresh=False):
+    """Official TWSE limit-up/limit-down prices valid ON `day` (TWT84U 股價升降幅度). No approximation."""
+    if not refresh and complete(c,"TWSE_LIMIT",day): return
+    d=dt.date.fromisoformat(day)
+    try:
+        obj=request(c,"TWSE_LIMIT",day,TWSE_LIMITS,{"date":d.strftime("%Y%m%d"),"selectType":"ALLBUT0999","response":"json"})
+        if iso(obj.get("date",""))!=day: raise ValueError("response date mismatch")
+        fs=[str(f).strip() for f in obj.get("fields",[])]
+        if fs[:5]!=["證券代號","證券名稱","漲停價","開盤競價基準","跌停價"]: raise ValueError("limit schema not recognized")
+        rows=[]
+        for r in obj.get("data",[]):
+            t=str(r[0]).strip()
+            if not re.fullmatch(r"[1-9][0-9]{3}",t): continue
+            up,down=number(r[2]),number(r[4])
+            if up and down and up>down>0: rows.append((day,"TWSE",t,up,down))
+        if len(rows)<300: raise ValueError("incomplete limit table")
+        with c:
+            c.execute("DELETE FROM limits WHERE date=? AND exchange='TWSE'",(day,))
+            c.executemany("INSERT INTO limits VALUES(?,?,?,?,?)",rows)
+        mark(c,"TWSE_LIMIT",day,"ok",str(len(rows)))
+    except Exception as e:
+        mark(c,"TWSE_LIMIT",day,"error",str(e)); raise
 def sync(c,start,end):
     failures=[]
     month=start.replace(day=1)
@@ -140,6 +164,8 @@ def sync(c,start,end):
         for exchange in ("TWSE","TPEX"):
             try: daily(c,exchange,day)
             except Exception as e: failures.append((exchange,day,str(e)))
+        try: twse_limits(c,day)
+        except Exception as e: failures.append(("TWSE_LIMIT",day,str(e)))
     if not days: failures.append(("calendar","","no verified sessions"))
     return failures
 def export(c,out):
@@ -153,6 +179,13 @@ def export(c,out):
     limits["date"]=limits.date.map(next_session)
     limits=limits.dropna(subset=["date"]).rename(columns={"next_up":"limit_up","next_down":"limit_down"})
     b=b.drop(columns=["next_up","next_down"]).merge(limits,on=["exchange","ticker","date"],how="left")
+    # TWSE: official same-day limits from TWT84U fill what MI_INDEX lacks.
+    tl=pd.read_sql_query("SELECT date,exchange,ticker,up,down FROM limits",c)
+    if len(tl):
+        b=b.merge(tl,on=["exchange","ticker","date"],how="left")
+        b["limit_up"]=pd.to_numeric(b.limit_up,errors="coerce").fillna(b.up)
+        b["limit_down"]=pd.to_numeric(b.limit_down,errors="coerce").fillna(b.down)
+        b=b.drop(columns=["up","down"])
     if b.duplicated(["date","ticker"]).any(): raise ValueError("ticker collision across markets")
     m.to_csv(out/"market.csv",index=False)
     b.to_csv(out/"bars.csv",index=False)

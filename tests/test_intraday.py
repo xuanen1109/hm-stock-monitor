@@ -128,6 +128,43 @@ class PublicDataTests(unittest.TestCase):
         self.assertEqual(rows[0][8], 1000.0)
 
 
+class LimitTests(unittest.TestCase):
+    def test_twse_limits_parsed_and_exported(self):
+        from seed_radar import market_ingest as mi
+        fields = ["證券代號", "證券名稱", "漲停價", "開盤競價基準", "跌停價", "開盤競價基準", "收盤價"]
+        data = [[f"{1100 + i}", "x", "11.00", "10.00", "9.00", "10.00", "10.00"] for i in range(300)] + [["0050", "etf", "1", "1", "1", "1", "1"]]
+        orig = mi.request
+        mi.request = lambda c, s, p, b, params: {"date": "20261126", "fields": fields, "data": data}
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                c = mi.open_db(str(Path(tmp) / "m.sqlite"))
+                mi.twse_limits(c, "2026-11-26")
+                self.assertEqual(c.execute("SELECT COUNT(*) FROM limits").fetchone()[0], 300)
+                c.execute("INSERT INTO market VALUES('2026-11-26', 100)")
+                c.execute("INSERT INTO bars VALUES('2026-11-26','TWSE','1100','x',10,10,10,10,1000,NULL,NULL)")
+                c.commit()
+                mi.export(c, Path(tmp) / "out")
+                b = pd.read_csv(Path(tmp) / "out" / "bars.csv")
+                self.assertEqual(float(b.limit_up.iloc[0]), 11.0)
+                c.close()
+        finally:
+            mi.request = orig
+
+
+class DividendTests(unittest.TestCase):
+    def test_ex_dividend_drop_is_not_a_loss(self):
+        from seed_radar.backtest import simulate
+        days = pd.bdate_range("2024-01-01", periods=6)
+        close = [100., 100., 90., 90., 90., 90.]  # 第 3 天除息 10 元
+        factor = [0.9, 0.9, 1.0, 1.0, 1.0, 1.0]  # 還原收盤 / 原始收盤
+        bars = pd.DataFrame(dict(date=days, ticker="T", name="t", open=close, high=close, low=close, close=close,
+                                 volume=1e7, limit_up=[x * 1.1 for x in close], limit_down=[x * .9 - .01 for x in close], adj_factor=factor))
+        sig = pd.DataFrame(dict(date=[days[0]], ticker=["T"], score=[90], regime=["bull"]))
+        trades, _, _, _ = simulate(bars, sig, days, horizon=3, initial=2_000_000)
+        self.assertEqual(len(trades), 1)
+        self.assertGreater(trades.ret.iloc[0], -0.01)  # 只剩交易成本，不是 -10%
+
+
 class BenchmarkTests(unittest.TestCase):
     def test_buy_and_hold_costs_and_window(self):
         from seed_radar.backtest import benchmark_metrics

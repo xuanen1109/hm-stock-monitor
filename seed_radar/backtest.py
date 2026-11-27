@@ -8,6 +8,11 @@ TAX=.003
 SLIP=.001
 HORIZONS=(1,3,5,10,20)
 
+def _factor(r):
+    """Optional adj_factor column (adjusted close / raw close); 1 when absent or invalid."""
+    f=getattr(r,"adj_factor",1.0)
+    return float(f) if f is not None and np.isfinite(f) and f>0 else 1.0
+
 def simulate(bars, signals, sessions, horizon=5, initial=1_000_000, max_positions=10):
     """Next-session open entry; horizon-th session close exit, defer locked sell.
     Limit price touch at execution time conservatively blocks the order.
@@ -41,15 +46,17 @@ def simulate(bars, signals, sessions, horizon=5, initial=1_000_000, max_position
                 if qty<=0:
                     orders.append(dict(date=day,ticker=s.ticker,status="lot_or_liquidity"));continue
                 cost=qty*price*(1+FEE); cash-=cost
-                holdings[s.ticker]=dict(cost=cost,qty=qty,entry=day,due=i+horizon-1,mark=r.open,regime=s.regime,signal_date=prev)
+                holdings[s.ticker]=dict(cost=cost,qty=qty,entry=day,due=i+horizon-1,mark=r.open,regime=s.regime,signal_date=prev,
+                                        f_entry=_factor(r))
                 orders.append(dict(date=day,ticker=s.ticker,status="filled"))
         for ticker,p in list(holdings.items()):
             r=lookup.get((day,ticker))
-            if r is not None and np.isfinite(r.close): p["mark"]=r.close
+            # Dividends/splits: raw prices x (adjustment factor ratio) = total-return value of the position.
+            if r is not None and np.isfinite(r.close): p["mark"]=r.close*_factor(r)/p["f_entry"]
             if i<p["due"]: continue
             if r is None or r.volume<=0 or not np.isfinite(r.limit_down) or r.close<=r.limit_down: continue
             px=max(r.limit_down,r.close*(1-SLIP))
-            proceeds=p["qty"]*px*(1-FEE-TAX);cash+=proceeds
+            proceeds=p["qty"]*px*_factor(r)/p["f_entry"]*(1-FEE-TAX);cash+=proceeds
             trades.append(dict(ticker=ticker,entry=p["entry"],exit=day,regime=p["regime"],signal_date=p["signal_date"],pnl=proceeds-p["cost"],ret=proceeds/p["cost"]-1))
             del holdings[ticker]
         equity.append(dict(date=day,equity=cash+sum(p["qty"]*p["mark"] for p in holdings.values()),cash=cash))
