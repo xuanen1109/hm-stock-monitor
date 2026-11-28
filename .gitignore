@@ -1,0 +1,14 @@
+# 行情資料、報告與本機機密一律不進 Git
+__pycache__/
+*.pyc
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+data/
+local/
+reports/
+seed_output/
+.env
+*.pfx
+*.p12
